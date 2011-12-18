@@ -1,0 +1,16 @@
+# esa-wordseg
+
+An implementation of the ESA unsupervised word segmentation algorithm
+in Clojure.
+
+http://www.mitpressjournals.org/doi/pdfplus/10.1162/COLI_a_00058
+
+## Usage
+
+FIXME: write
+
+## License
+
+Copyright (C) 2011 FIXME
+
+Distributed under the Eclipse Public License, the same as Clojure.
