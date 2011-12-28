@@ -8,7 +8,10 @@
   frequencies of sequences in the trie nodes.
 
   None of the operations performs any removal of nodes as this is unnecessary
-  for the task at hand.")
+  for the task at hand. Also, a better implementation of tries would implement
+  the standard Clojure collection interfaces and would then be accessed by
+  the same functions as regular collections. However, this is now beyond
+  my current grasp of Clojure.")
 
 (def empty-trie nil)
 

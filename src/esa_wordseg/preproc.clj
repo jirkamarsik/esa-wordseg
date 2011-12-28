@@ -2,7 +2,7 @@
   "The preprocessing part of the algorithm which takes care of chunking
   the input and calculating all of its relevant statistics."
   (:import (java.lang Character$UnicodeScript))
-  (:use (esa-wordseg (trie :only [empty-trie into-trie assoc-trie keys-trie]))))
+  (:use (esa-wordseg trie)))
 
 
 ;;; PRELIMINARY CHUNKING OF INPUT
@@ -77,10 +77,10 @@
   of its frequencies/probabilities."
   [freqs]
   (let [sum (apply + freqs)]
-    (if (== sum 0)
+    (if (zero? sum)
       0
       (let [probs (map #(/ % sum) freqs)
-            contribs (map #(if (== % 0) 0 (* % (Math/log %))) probs)]
+            contribs (map #(if (zero? %) 0 (* % (Math/log %))) probs)]
         (- (apply + contribs))))))
 
 (defn add-entropies-to-trie
@@ -96,3 +96,25 @@
                                              (entropy (plus-one-right-freqs trie %)))
                                       trie-keys)]
     (apply assoc-trie trie (concat left-entropy-entries right-entropy-entries))))
+
+;; TAKING THE AVERAGES OF THE STATISTICS
+
+(defn averages-by-length
+  "Returns a vector whose i-th element is the average of the values bound
+  to 'key' on the i-th level of the supplied tries."
+  [tries key]
+  (when (seq tries)
+    (let [values-here (keep #(get % key) tries)
+          average-here (when (not (zero? (count values-here)))
+                         (/ (apply + values-here) (count values-here)))
+          successors (mapcat (comp vals :succs) tries)]
+      (into [average-here] (averages-by-length successors key)))))
+
+(defn get-average-statistics
+  "Given a trie with recorded frequencies and entropies, returns a map
+  from the names of these properties to the vectors of their averages
+  by length."
+  [trie]
+  (let [averages (map (fn [key] {key (averages-by-length [trie] key)})
+                        [:freq :left-entropy :right-entropy])]
+    (apply merge averages)))
