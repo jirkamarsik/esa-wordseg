@@ -1,17 +1,18 @@
-(ns esa-wordseg.trie)
+(ns esa-wordseg.trie
+  "A simple implementation of tries.
 
-;; A simple implementation of tries.
+  Keys may be any sequence types, every node is represented by a map and it is
+  therefore easy to pack the tries with different kinds of data. The get-trie
+  and assoc-trie provide an associative abstraction of the trie, while the
+  conj-trie, disj-trie and into-trie provide a multiset abstraction storing the
+  frequencies of sequences in the trie nodes.
 
-;; Keys may be any sequence types, every node is represented by a map and it is
-;; therefore easy to pack the tries with different kinds of data. The get-trie
-;; and assoc-trie provide an associative abstraction of the trie, while the
-;; conj-trie, disj-trie and into-trie provide a multiset abstraction storing the
-;; frequencies of sequences in the trie nodes.
-
-;; None of the operations performs any removal of nodes as this is unnecessary
-;; for the task at hand.
+  None of the operations performs any removal of nodes as this is unnecessary
+  for the task at hand.")
 
 (def empty-trie nil)
+
+;; ASSOCIATIVE SEMANTICS
 
 (defn get-trie
   "Retrieves the value under key bound to the sequence x in the given trie.
@@ -35,6 +36,19 @@
        (assoc trie key val)))
   ([trie x key val & xkvs]
      (reduce (partial apply assoc-trie) (assoc-trie trie x key val) (partition 3 xkvs))))
+
+(defn keys-trie
+  "Returns all the character sequences which have a value defined
+  for the key 'key' in the given trie."
+  [trie key]
+  (when trie
+    (let [keys-succs (mapcat (fn [[ch succ]] (map #(conj % ch) (keys-trie succ key)))
+                             (:succs trie))]
+      (if (contains? trie key)
+        (conj keys-succs '())
+        keys-succs))))
+
+;; MULTISET SEMANTICS
 
 (defn conj-trie
   "Returns a trie with the xs 'added'. Here, the trie has multiset semantics
