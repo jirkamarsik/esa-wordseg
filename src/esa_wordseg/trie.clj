@@ -34,7 +34,7 @@
                  (assoc-trie (get (:succs trie) (first x)) (rest x) key val))
        (assoc trie key val)))
   ([trie x key val & xkvs]
-     (apply assoc-trie (assoc-trie x key val) xkvs)))
+     (reduce (partial apply assoc-trie) (assoc-trie trie x key val) (partition 3 xkvs))))
 
 (defn conj-trie
   "Returns a trie with the xs 'added'. Here, the trie has multiset semantics
@@ -44,7 +44,7 @@
      (let [current-freq (get-trie trie x :freq 0)]
        (assoc-trie trie x :freq (inc current-freq))))
   ([trie x & xs]
-     (apply conj-trie (conj-trie trie x) xs)))
+     (reduce conj-trie (conj-trie trie x) xs)))
 
 (defn disj-trie
   "Returns a trie with the xs 'removed'. For this operation, the trie
@@ -54,9 +54,29 @@
      (let [current-freq (get-trie trie x :freq 0)]
        (assoc-trie trie x :freq (max 0 (dec current-freq)))))
   ([trie x & xs]
-     (apply disj-trie (disj-trie trie x) xs)))
+     (reduce disj-trie (disj-trie trie x) xs)))
 
 (defn into-trie
   "Returns a new trie consisting of trie with the sequences in xs conjoined."
   [trie xs]
   (reduce conj-trie trie xs))
+
+
+;; This could have been a neat macro to use, but I ran into a problem when trying
+;; to have a macro expanded inside a macro form (defn), which would have to result
+;; in me either writing my own defn or severely limiting the conciseness
+;; of the macro. Since neither of these were appealing, I am just going to store
+;; this macro here for future reference.
+(defmacro variadic-overload
+  "Generates a variadic overload for the function named fn-name,
+  with the arglist = params. The generated overload takes the first
+  parameter and calls the named function on it repeatedly with the other
+  arguments. The arguments are supplied to the function in groups
+  of size derived from the arity of the other unused arguments in
+  params."
+  [fn-name params]
+  (let [[ord-params amp [rest-param]] (partition-by #{'&} params)]
+    `(~params
+      (reduce (partial apply ~fn-name)
+              (~fn-name ~@ord-params)
+              (partition ~(dec (count ord-params)) ~rest-param)))))
