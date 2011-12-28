@@ -59,4 +59,4 @@
 (defn into-trie
   "Returns a new trie consisting of trie with the sequences in xs conjoined."
   [trie xs]
-  (apply conj-trie trie xs))
+  (reduce conj-trie trie xs))
