@@ -68,33 +68,30 @@
 (defn entropy
   "Estimates the entropy of a distribution given frequencies of the witnessed
   outcomes and the total number of possible outcomes. Smooths the distribution
-  using Good-Turing before taking the entropy."
-  [freqs total-outcomes]
+  using additive smoothing with the given smooth-param (Adding smooth-param)."
+  [freqs total-outcomes smooth-param]
   {:pre [(> (reduce + freqs) 0)]}
-  (when (seq freqs)
-    (let[zero-probs (- total-outcomes (count freqs))
-         freqs-of-freqs (apply merge-with + (cons {0 zero-probs}
-                                                  (map (fn [f] {f 1}) freqs)))
-         raw-est (fn [f] (/ (* (+ f 1) (freqs-of-freqs (+ f 1) 0))
-                           (* total-outcomes (freqs-of-freqs f 0))))
-         raw-probs (map raw-est freqs)
-         raw-zero (raw-est 0)
-         sum (reduce + (* zero-probs raw-zero) raw-probs)
-         normalize (fn [p] (/ p sum))
-         probs (map normalize raw-probs)
-         prob-zero (normalize raw-zero)
-         entropy-summand (fn [p] (if (zero? p) 0 (* p (Math/log p))))
-         contribs (map entropy-summand probs)
-         contrib-zero (entropy-summand prob-zero)]
-      (- (reduce + (* zero-probs contrib-zero) contribs)))))
+  (let [zero-freqs (- total-outcomes (count freqs))
+        total-events (reduce + freqs)
+        smooth (fn [f] (/ (+ f smooth-param)
+                         (+ total-events (* smooth-param total-outcomes))))
+        probs (map smooth freqs)
+        prob-zero (smooth 0)
+        entropy-summand (fn [p] (if (zero? p) 0 (* p (Math/log p))))
+        contribs (map entropy-summand probs)
+        contrib-zero (entropy-summand prob-zero)]
+    (- (reduce + (* zero-freqs contrib-zero) contribs))))
 
 ; It might be nicer to split this function up (the consituent fns
 ; are already there).
 (defn add-entropy-tries
-  "Takes a trie with sequence frequencies and the size of the data's
-  alphabet and returns a map containing the original trie along with
-  tries of entropies of the Sequence Plus One sets."
-  [freq-trie alphabet-size]
+  "Takes a trie with sequence frequencies and returns a map containing
+  the original trie along with tries of entropies of the Sequence Plus
+  One sets. Also performs smoothing on the estimated distributions of
+  Sequence Plus One using the given parameters, alphabet-size for
+  the total number of possible characters in the data and smooth-param
+  for the additive smoothing parameter."
+  [freq-trie alphabet-size smooth-param]
   (let [find-sp1 (fn [key]
                    (fn [trie [x node]]
                      (if (< (count x) 2)
@@ -115,7 +112,9 @@
         make-entropy-trie (fn [sp1-freqs-key sp1-entropy-key]
                             (fn [trie [x node]]
                               (if-let [sp1-freqs (sp1-freqs-key node)]
-                                (let [sp1-entropy (entropy sp1-freqs alphabet-size)]
+                                (let [sp1-entropy (entropy sp1-freqs
+                                                           alphabet-size
+                                                           smooth-param)]
                                   (assoc-trie trie x sp1-entropy-key sp1-entropy))
                                 trie)))
         [sp1-left-entropy-trie, sp1-right-entropy-trie]
@@ -126,7 +125,9 @@
              [[:sp1-left-freqs :sp1-left-entropy sp1-left-freqs-trie]
               [:sp1-right-freqs :sp1-right-entropy sp1-right-freqs-trie]])]
     {:freq freq-trie
+     :sp1-left-freqs sp1-left-freqs-trie
      :sp1-left-entropy sp1-left-entropy-trie
+     :sp1-right-freqs sp1-right-freqs-trie
      :sp1-right-entropy sp1-right-entropy-trie}))
 
 
