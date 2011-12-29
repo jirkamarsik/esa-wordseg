@@ -122,21 +122,24 @@
 
 ;; BREAKING UP THE LARGER CHUNKS
 
-; This will need to be tail-call optimized for it to make sense.
+; Possible refinement over the original: Make the minimum length of
+; the two parts to be split be a secondary criterion. This way, we can
+; make sure we make less "blind" splits if the scoring function will be flat.
 (defn split-by-goodness
   "Furthers subdivides the given sequence of character sequences xs into
   chunks with length <= limit. The division points are selected according
   to gap goodness, which is computed using the supplied statistics
   exponent values."
   [stats xs limit exp]
-  (letfn [(split-one [x]
-            (if (<= (count x) limit)
-              [x]
-              (let [candidates (for [point (range 1 (- (count x) 1))
-                                     :let [left-x (subvec x 0 point)
-                                           right-x (subvec x point)
-                                           score (gap-goodness stats left-x right-x exp)]]
-                                 [score [left-x right-x]])
-                    [score [left-x right-x]] (last (sort candidates))]
-                (split-by-goodness stats [left-x right-x] limit exp))))]
-    (mapcat split-one xs)))
+  (loop [acc [], [x & more] xs]
+    (if x
+      (if (<= (count x) limit)
+        (recur (conj acc x) more)
+        (let [candidates (for [point (range 1 (- (count x) 1))
+                               :let [left-x (subvec x 0 point)
+                                     right-x (subvec x point)
+                                     score (gap-goodness stats left-x right-x exp)]]
+                           [score [left-x right-x]])
+              [top-score [left-x right-x]] (last (sort candidates))]
+          (recur acc (concat [left-x right-x] more))))
+      acc)))
