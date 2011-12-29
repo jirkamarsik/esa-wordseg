@@ -2,7 +2,7 @@
   "The preprocessing part of the algorithm which takes care of chunking
   the input and calculating all of its relevant statistics."
   (:import (java.lang Character$UnicodeScript))
-  (:use (esa-wordseg trie)))
+  (:use (esa-wordseg trie [eval :only [gap-goodness]])))
 
 
 ;;; PRELIMINARY CHUNKING OF INPUT
@@ -76,12 +76,12 @@
   "Calculates the entropy of a distribution given a seq
   of its frequencies/probabilities."
   [freqs]
-  (let [sum (apply + freqs)]
+  (let [sum (reduce + freqs)]
     (if (zero? sum)
       0
       (let [probs (map #(/ % sum) freqs)
             contribs (map #(if (zero? %) 0 (* % (Math/log %))) probs)]
-        (- (apply + contribs))))))
+        (- (reduce + contribs))))))
 
 (defn add-entropies-to-trie
   "Takes a trie of character sequence frequencies and computes
@@ -106,7 +106,7 @@
   (when (seq tries)
     (let [values-here (keep #(get % key) tries)
           average-here (when (not (zero? (count values-here)))
-                         (/ (apply + values-here) (count values-here)))
+                         (/ (reduce + values-here) (count values-here)))
           successors (mapcat (comp vals :succs) tries)]
       (into [average-here] (averages-by-length successors key)))))
 
@@ -116,5 +116,27 @@
   by length."
   [trie]
   (let [averages (map (fn [key] {key (averages-by-length [trie] key)})
-                        [:freq :left-entropy :right-entropy])]
-    (apply merge averages)))
+                      [:freq :left-entropy :right-entropy])]
+    (reduce merge averages)))
+
+
+;; BREAKING UP THE LARGER CHUNKS
+
+; This will need to be tail-call optimized for it to make sense.
+(defn split-by-goodness
+  "Furthers subdivides the given sequence of character sequences xs into
+  chunks with length <= limit. The division points are selected according
+  to gap goodness, which is computed using the supplied statistics
+  exponent values."
+  [stats xs limit exp]
+  (letfn [(split-one [x]
+            (if (<= (count x) limit)
+              [x]
+              (let [candidates (for [point (range 1 (- (count x) 1))
+                                     :let [left-x (subvec x 0 point)
+                                           right-x (subvec x point)
+                                           score (gap-goodness stats left-x right-x exp)]]
+                                 [score [left-x right-x]])
+                    [score [left-x right-x]] (last (sort candidates))]
+                (split-by-goodness stats [left-x right-x] limit exp))))]
+    (mapcat split-one xs)))
