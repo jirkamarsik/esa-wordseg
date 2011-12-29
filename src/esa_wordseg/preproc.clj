@@ -56,46 +56,79 @@
   (let [all-subvecs (mapcat #(subvecs % limit) xs)]
     (into-trie empty-trie all-subvecs)))
 
+
 ;; COMPUTING THE ENTROPIES OF PRECEDING/FOLLOWING CHAR
 
-(defn plus-one-left-freqs
-  "Returns a seq of frequencies (as given by the trie) of all character
-  sequences of the form c . x, where . is concatenation
-  and c is any character."
-  [trie x]
-  (map #(get-trie % x :freq 0) (vals (:succs trie))))
-
-(defn plus-one-right-freqs
-  "Returns a seq of frequencies (as given by the trie) of all character
-  sequences of the form x . c, where . is concatenation
-  and c is any character."
-  [trie x]
-  (map :freq (vals (get-trie trie x :succs))))
+(defn get-alphabet-size
+  "Returns the number of distinct characters in the sequence of character
+  sequences xs."
+  [xs]
+  (count (reduce into (map set xs))))
 
 (defn entropy
-  "Calculates the entropy of a distribution given a seq
-  of its frequencies/probabilities."
-  [freqs]
-  (let [sum (reduce + freqs)]
-    (if (zero? sum)
-      0
-      (let [probs (map #(/ % sum) freqs)
-            contribs (map #(if (zero? %) 0 (* % (Math/log %))) probs)]
-        (- (reduce + contribs))))))
+  "Estimates the entropy of a distribution given frequencies of the witnessed
+  outcomes and the total number of possible outcomes. Smooths the distribution
+  using Good-Turing before taking the entropy."
+  [freqs total-outcomes]
+  {:pre [(> (reduce + freqs) 0)]}
+  (when (seq freqs)
+    (let[zero-probs (- total-outcomes (count freqs))
+         freqs-of-freqs (apply merge-with + (cons {0 zero-probs}
+                                                  (map (fn [f] {f 1}) freqs)))
+         raw-est (fn [f] (/ (* (+ f 1) (freqs-of-freqs (+ f 1) 0))
+                           (* total-outcomes (freqs-of-freqs f 0))))
+         raw-probs (map raw-est freqs)
+         raw-zero (raw-est 0)
+         sum (reduce + (* zero-probs raw-zero) raw-probs)
+         normalize (fn [p] (/ p sum))
+         probs (map normalize raw-probs)
+         prob-zero (normalize raw-zero)
+         entropy-summand (fn [p] (if (zero? p) 0 (* p (Math/log p))))
+         contribs (map entropy-summand probs)
+         contrib-zero (entropy-summand prob-zero)]
+      (- (reduce + (* zero-probs contrib-zero) contribs)))))
 
-(defn add-entropies-to-trie
-  "Takes a trie of character sequence frequencies and computes
-  and stores the entropies of Sequence Plus One Left
-  and Sequence Plus One Right."
-  [trie]
-  (let [trie-keys (keys-trie trie :freq)
-        left-entropy-entries (mapcat #(list % :left-entropy
-                                            (entropy (plus-one-left-freqs trie %)))
-                                     trie-keys)
-        right-entropy-entries (mapcat #(list % :right-entropy
-                                             (entropy (plus-one-right-freqs trie %)))
-                                      trie-keys)]
-    (apply assoc-trie trie (concat left-entropy-entries right-entropy-entries))))
+; It might be nicer to split this function up (the consituent fns
+; are already there).
+(defn add-entropy-tries
+  "Takes a trie with sequence frequencies and the size of the data's
+  alphabet and returns a map containing the original trie along with
+  tries of entropies of the Sequence Plus One sets."
+  [freq-trie alphabet-size]
+  (let [find-sp1 (fn [key]
+                   (fn [trie [x node]]
+                     (if (< (count x) 2)
+                       trie
+                       (let [sub-x (case key
+                                         :sp1-left-freqs (subvec x 1)
+                                         :sp1-right-freqs (subvec x 0 (- (count x) 1)))
+                             freq (:freq node)
+                             old-freqs (get-trie trie sub-x key [])
+                             new-freqs (conj old-freqs freq)]
+                         (assoc-trie trie sub-x key new-freqs)))))
+        [sp1-left-freqs-trie, sp1-right-freqs-trie]
+        (map (fn [key]
+               (reduce (find-sp1 key)
+                       empty-trie
+                       (seq-trie freq-trie)))
+             [:sp1-left-freqs, :sp1-right-freqs])
+        make-entropy-trie (fn [sp1-freqs-key sp1-entropy-key]
+                            (fn [trie [x node]]
+                              (if-let [sp1-freqs (sp1-freqs-key node)]
+                                (let [sp1-entropy (entropy sp1-freqs alphabet-size)]
+                                  (assoc-trie trie x sp1-entropy-key sp1-entropy))
+                                trie)))
+        [sp1-left-entropy-trie, sp1-right-entropy-trie]
+        (map (fn [[sp1-freqs-key sp1-entropy-key sp1-freqs-trie]]
+               (reduce (make-entropy-trie sp1-freqs-key sp1-entropy-key)
+                       empty-trie
+                       (seq-trie sp1-freqs-trie)))
+             [[:sp1-left-freqs :sp1-left-entropy sp1-left-freqs-trie]
+              [:sp1-right-freqs :sp1-right-entropy sp1-right-freqs-trie]])]
+    {:freq freq-trie
+     :sp1-left-entropy sp1-left-entropy-trie
+     :sp1-right-entropy sp1-right-entropy-trie}))
+
 
 ;; TAKING THE AVERAGES OF THE STATISTICS
 
@@ -123,7 +156,7 @@
 ;; BREAKING UP THE LARGER CHUNKS
 
 ; Possible refinement over the original: Make the minimum length of
-; the two parts to be split be a secondary criterion. This way, we can
+; the two parts to be split a secondary criterion. This way, we can
 ; make sure we make less "blind" splits if the scoring function will be flat.
 (defn split-by-goodness
   "Furthers subdivides the given sequence of character sequences xs into

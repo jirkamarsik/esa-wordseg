@@ -51,6 +51,18 @@
         (conj keys-succs '())
         keys-succs))))
 
+(defn seq-trie
+  "Returns a lazy seq of pairs of character vectors and the nodes which
+  belong to them in the trie."
+  [trie]
+  (letfn [(seq-trie' [trie prefix]
+            (when trie
+              (lazy-seq
+               (cons [prefix trie]
+                     (mapcat (fn [[ch succ]] (seq-trie' succ (conj prefix ch)))
+                             (:succs trie))))))]
+    (seq-trie' trie [])))
+
 ;; MULTISET SEMANTICS
 
 (defn conj-trie
