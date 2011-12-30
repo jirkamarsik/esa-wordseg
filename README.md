@@ -1,4 +1,4 @@
-# esa-wordseg
+# ESA - An Unsupervised Word Segmentation Algorithm
 
 An implementation of the ESA unsupervised word segmentation algorithm
 in Clojure.
@@ -36,8 +36,8 @@ The last five arguments correspond to the following options:
   the SP1 sets
 * the methods which will be used to initially divide the input
   data into smaller blocks, expressed as a sequence of keywords,
-  where :newline stands for splitting on newlines, :punct stands
-  for splitting on Unicode punctuation and :char-class stands for
+  where `:newline` stands for splitting on newlines, `:punct` stands
+  for splitting on Unicode punctuation and `:char-class` stands for
   splitting on the boundaries between characters in and out of the
   Chinese script
 
@@ -58,8 +58,8 @@ implemented as 32-ary tries.
 
 Currently, the SP1 distributions are smoothed using additive
 smoothing, because Good-Turing wasn't suitable due to the sparsity of
-the frequency frequencies and otherwise the zero entropies break the
-entire algorithm.
+the frequency frequencies and without smoothing the zero entropies
+break the entire algorithm.
 
 The approach is also riddled with the same issues which befall
 language modelling. For computing LRV, the gap goodness, we rely on
@@ -69,7 +69,7 @@ reliability of the smaller n-grams and the detail of the larger
 n-grams and ends up using the most detailed, least reliable ones all
 the time. Instead of just using additive smoothing on the SP1
 distributions, it could be more sensible to interpolate the SP1
-distributions for the given n-grams and its subsequences.
+distributions for smaller n-grams.
 
 ## License
 
