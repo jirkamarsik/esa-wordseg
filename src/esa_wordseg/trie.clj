@@ -66,6 +66,14 @@
                    seq-succs)))))]
     (seq-trie' trie [])))
 
+; A lazy trick.
+(defn contains?-trie
+  "Returns a boolean indicating whether the trie carries a value for the
+  given key sequence."
+  [trie key]
+  (let [not-found (gensym)]
+    (not= not-found (get-trie trie key not-found))))
+
 ;; MULTISET SEMANTICS
 
 (defn conj-trie

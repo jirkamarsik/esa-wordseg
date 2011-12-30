@@ -70,7 +70,6 @@
   outcomes and the total number of possible outcomes. Smooths the distribution
   using additive smoothing with the given smooth-param (Adding smooth-param)."
   [freqs total-outcomes smooth-param]
-  {:pre [(> (reduce + freqs) 0)]}
   (let [zero-freqs (- total-outcomes (count freqs))
         total-events (reduce + freqs)
         smooth (fn [f] (/ (+ f smooth-param)
@@ -94,14 +93,17 @@
   [freq-trie alphabet-size smooth-param]
   (let [find-sp1 (fn [scenario]
                    (fn [trie [x freq]]
-                     (if (< (count x) 2)
-                       trie
-                       (let [sub-x (case scenario
-                                         :sp1-left (subvec x 1)
-                                         :sp1-right (subvec x 0 (- (count x) 1)))
-                             old-freqs (get-trie trie sub-x [])
-                             new-freqs (conj old-freqs freq)]
-                         (assoc-trie trie sub-x new-freqs)))))
+                     (let [trie (if (contains?-trie trie x)
+                                  trie
+                                  (assoc-trie trie x []))]
+                       (if (< (count x) 2)
+                         trie
+                         (let [sub-x (case scenario
+                                           :sp1-left (subvec x 1)
+                                           :sp1-right (subvec x 0 (- (count x) 1)))
+                               old-freqs (get-trie trie sub-x [])
+                               new-freqs (conj old-freqs freq)]
+                           (assoc-trie trie sub-x new-freqs))))))
         [sp1-left-freqs-trie, sp1-right-freqs-trie]
         (map (fn [scenario]
                (reduce (find-sp1 scenario)
@@ -153,18 +155,29 @@
 (defn split-by-goodness
   "Furthers subdivides the given sequence of character sequences xs into
   chunks with length <= limit. The division points are selected according
-  to gap goodness, which is computed using the supplied statistics
+  to gap goodness, which is computed using the supplied statistics and
   exponent values."
   [stats xs limit exp]
   (loop [acc [], [x & more] xs]
     (if x
       (if (<= (count x) limit)
         (recur (conj acc x) more)
-        (let [candidates (for [point (range 1 (- (count x) 1))
-                               :let [left-x (subvec x 0 point)
-                                     right-x (subvec x point)
-                                     score (gap-goodness stats left-x right-x exp)]]
-                           [score [left-x right-x]])
+        (let [candidates
+              (for [point (range 1 (- (count x) 1))
+                    :let [left-x (subvec x 0 point)
+                          right-x (subvec x point)
+                          score (gap-goodness
+                                 stats
+                                 ; the gap-goodness measure can only take
+                                 ; sequences of length <= limit
+                                 (subvec left-x
+                                         (- (count left-x)
+                                            (min limit (count left-x))))
+                                 (subvec right-x
+                                         0
+                                         (min limit (count right-x)))
+                                 exp)]]
+                [score [left-x right-x]])
               [top-score [left-x right-x]] (last (sort candidates))]
           (recur acc (concat [left-x right-x] more))))
       acc)))
