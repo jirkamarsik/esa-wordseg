@@ -25,21 +25,21 @@ into sequences of words or esa-on-files to process entire files.
 
 The last five arguments correspond to the following options:
 
-    * the maximum number of ESA iterations (no limit of the value is
-      positive)
-    * the maximum length of a sequence being processed by the Segment
-      algorithm in Selection (limits accuracy but makes the problem
-      manageable computationally)
-    * the exponent used in the LRV formula (Equation (10) in the
-      paper) used to compute the goodness of a gap
-    * the parameter used in additive smoothing of the distributions of
-      the SP1 sets
-    * the methods which will be used to initially divide the input
-      data into smaller blocks, expressed as a sequence of keywords,
-      where :newline stands for splitting on newlines, :punct stands
-      for splitting on Unicode punctuation and :char-class stands for
-      splitting on the boundaries between characters in and out of the
-      Chinese script
+* the maximum number of ESA iterations (no limit of the value is
+  positive)
+* the maximum length of a sequence being processed by the Segment
+  algorithm in Selection (limits accuracy but makes the problem
+  manageable computationally)
+* the exponent used in the LRV formula (Equation (10) in the
+  paper) used to compute the goodness of a gap
+* the parameter used in additive smoothing of the distributions of
+  the SP1 sets
+* the methods which will be used to initially divide the input
+  data into smaller blocks, expressed as a sequence of keywords,
+  where :newline stands for splitting on newlines, :punct stands
+  for splitting on Unicode punctuation and :char-class stands for
+  splitting on the boundaries between characters in and out of the
+  Chinese script
 
 ## Notes on current performance
 
