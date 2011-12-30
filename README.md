@@ -7,6 +7,9 @@ http://www.mitpressjournals.org/doi/pdfplus/10.1162/COLI_a_00058
 
 ## Usage
 
+First, make sure you are running Java 7 as I am using the
+`java.lang.Character$UnicodeScript` class new to Java 7.
+
 Simply open a REPL with the program classes in the classpath
 (e.g. through Leiningen while standing in the project directory),
 
