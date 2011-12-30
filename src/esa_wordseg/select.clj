@@ -4,7 +4,6 @@
   (:use (esa-wordseg [eval :only [individual-goodness gap-goodness]])))
 
 (defn optimal-segmentation
-  "This should be invisible."
   [stats charvec exp]
   (let [splits (for [point (range 1 (- (count charvec) 1))]
                  (let [left-seg (subvec charvec 0 point)

@@ -1,10 +1,8 @@
 (ns esa-wordseg.core
-  (:use (esa-wordseg trie
-                     preproc
-                     eval
-                     select
-                     adjust
-                     misc)))
+  (:use (esa-wordseg preproc
+                     [select :only [segment]]
+                     [adjust :only [discount-subsegs]]
+                     [misc :only [flatten-leafs]])))
 
 ;; Some definitions which were useful at the REPL to test and probe the program.
 (def test-defs

@@ -3,10 +3,10 @@
 
   Keys may be any sequence types, every node is represented by a map
   holding the map of successors and the current value. The get-trie,
-  assoc-trie, keys-trie and seq-trie provide an associative
-  abstraction of the trie, while the conj-trie, disj-trie and
-  into-trie provide a multiset abstraction storing the frequencies of
-  sequences in the trie.
+  assoc-trie, keys-trie, seq-trie and contains?-trie provide an
+  associative abstraction of the trie, while the conj-trie, disj-trie
+  and into-trie provide a multiset abstraction storing the frequencies
+  of sequences in the trie.
 
   None of the operations performs any removal of nodes as this is unnecessary
   for the task at hand. Also, a better implementation of tries would implement
