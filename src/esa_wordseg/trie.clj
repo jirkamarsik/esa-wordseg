@@ -1,11 +1,12 @@
 (ns esa-wordseg.trie
   "A simple implementation of tries.
 
-  Keys may be any sequence types, every node is represented by a map and it is
-  therefore easy to pack the tries with different kinds of data. The get-trie
-  and assoc-trie provide an associative abstraction of the trie, while the
-  conj-trie, disj-trie and into-trie provide a multiset abstraction storing the
-  frequencies of sequences in the trie nodes.
+  Keys may be any sequence types, every node is represented by a map
+  holding the map of successors and the current value. The get-trie,
+  assoc-trie, keys-trie and seq-trie provide an associative
+  abstraction of the trie, while the conj-trie, disj-trie and
+  into-trie provide a multiset abstraction storing the frequencies of
+  sequences in the trie.
 
   None of the operations performs any removal of nodes as this is unnecessary
   for the task at hand. Also, a better implementation of tries would implement
@@ -18,49 +19,51 @@
 ;; ASSOCIATIVE SEMANTICS
 
 (defn get-trie
-  "Retrieves the value under key bound to the sequence x in the given trie.
+  "Retrieves the value in the trie which belongs to the key sequence.
   If such a value is not present, returns not-found."
-  ([trie x key]
-     (get-trie trie x key nil))
-  ([trie x key not-found]
+  ([trie key]
+     (get-trie trie key nil))
+  ([trie key not-found]
      (if trie
-       (if (seq x)
-         (get-trie (get (:succs trie) (first x)) (rest x) key not-found)
-         (get trie key not-found))
+       (if (seq key)
+         (get-trie (get-in trie [:succs (first key)]) (rest key) not-found)
+         (get trie :val not-found))
        not-found)))
 
 (defn assoc-trie
-  "Associates key to val in the node of the sequence x. Multiple triplets
-  of sequence, key, value can be specified."
-  ([trie x key val]
-     (if (seq x)
-       (assoc-in trie [:succs (first x)]
-                 (assoc-trie (get (:succs trie) (first x)) (rest x) key val))
-       (assoc trie key val)))
-  ([trie x key val & xkvs]
-     (reduce (partial apply assoc-trie) (assoc-trie trie x key val) (partition 3 xkvs))))
+  "Associates the sequence key to the value val in the trie. Multiple pairs
+  of sequence keys and values can be specified."
+  ([trie key val]
+     (if (seq key)
+       (update-in trie [:succs (first key)] assoc-trie (rest key) val)
+       (assoc trie :val val)))
+  ([trie key val & kvs]
+     (reduce (partial apply assoc-trie) (assoc-trie trie key val) (partition 2 kvs))))
 
 (defn keys-trie
-  "Returns all the character sequences which have a value defined
-  for the key 'key' in the given trie."
-  [trie key]
+  "Returns all the key sequences which have a value defined in the trie as lists."
+  [trie]
   (when trie
-    (let [keys-succs (mapcat (fn [[ch succ]] (map #(conj % ch) (keys-trie succ key)))
+    (let [keys-succs (mapcat (fn [[ch succ]] (map #(conj % ch) (keys-trie succ)))
                              (:succs trie))]
-      (if (contains? trie key)
+      (if (contains? trie :val)
         (conj keys-succs '())
         keys-succs))))
 
 (defn seq-trie
-  "Returns a lazy seq of pairs of character vectors and the nodes which
-  belong to them in the trie."
+  "Returns a lazy seq of pairs of keys as vectors and the values bound to them
+  in the trie."
   [trie]
   (letfn [(seq-trie' [trie prefix]
             (when trie
               (lazy-seq
-               (cons [prefix trie]
-                     (mapcat (fn [[ch succ]] (seq-trie' succ (conj prefix ch)))
-                             (:succs trie))))))]
+               (let [seq-succs (mapcat (fn [[ch succ]]
+                                         (seq-trie' succ (conj prefix ch)))
+                                       (:succs trie))]
+                 (if (contains? trie :val)
+                   (cons [prefix (:val trie)]
+                         seq-succs)
+                   seq-succs)))))]
     (seq-trie' trie [])))
 
 ;; MULTISET SEMANTICS
@@ -70,8 +73,8 @@
   and every addition of a sequence is realized by incrementing it's
   (:freq)uency in the trie."
   ([trie x]
-     (let [current-freq (get-trie trie x :freq 0)]
-       (assoc-trie trie x :freq (inc current-freq))))
+     (let [current-freq (get-trie trie x 0)]
+       (assoc-trie trie x (inc current-freq))))
   ([trie x & xs]
      (reduce conj-trie (conj-trie trie x) xs)))
 
@@ -80,8 +83,8 @@
   is considered as a multiset and removal of a sequence is implemented via
   decrementing its frequency."
   ([trie x]
-     (let [current-freq (get-trie trie x :freq 0)]
-       (assoc-trie trie x :freq (max 0 (dec current-freq)))))
+     (let [current-freq (get-trie trie x 0)]
+       (assoc-trie trie x (max 0 (dec current-freq)))))
   ([trie x & xs]
      (reduce disj-trie (disj-trie trie x) xs)))
 

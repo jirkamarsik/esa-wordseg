@@ -12,7 +12,7 @@
   the individual goodness score of the supplied character sequence x."
   [stats x]
   (let [length (count x)
-        freq (get-trie (:trie stats) x :freq)
+        freq (get-trie (get-in stats [:tries :freq]) x)
         average-freq (get-in stats [:averages :freq length])]
     (Math/pow (/ freq average-freq) length)))
 
@@ -22,11 +22,11 @@
   the goodness of a gap between the sequences x and y. 'exp' is the exponent
   used in the formula."
   [stats x y exp]
-  (let [right-entropy-of-x (get-trie (:trie stats) x :right-entropy)
-        average-right-entropy (get-in stats [:averages :right-entropy (count x)])
+  (let [right-entropy-of-x (get-trie (get-in stats [:tries :sp1-right-entropy]) x)
+        average-right-entropy (get-in stats [:averages :sp1-right-entropy (count x)])
         x-contrib (/ right-entropy-of-x average-right-entropy)
-        left-entropy-of-y (get-trie (:trie stats) y :left-entropy)
-        average-left-entropy (get-in stats [:averages :left-entropy (count y)])
+        left-entropy-of-y (get-trie (get-in stats [:tries :sp1-left-entropy]) y)
+        average-left-entropy (get-in stats [:averages :sp1-left-entropy (count y)])
         y-contrib (/ left-entropy-of-y average-left-entropy)]
     (Math/pow (* x-contrib y-contrib) exp)))
 

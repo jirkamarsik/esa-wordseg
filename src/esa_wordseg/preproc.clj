@@ -92,66 +92,57 @@
   the total number of possible characters in the data and smooth-param
   for the additive smoothing parameter."
   [freq-trie alphabet-size smooth-param]
-  (let [find-sp1 (fn [key]
-                   (fn [trie [x node]]
+  (let [find-sp1 (fn [scenario]
+                   (fn [trie [x freq]]
                      (if (< (count x) 2)
                        trie
-                       (let [sub-x (case key
-                                         :sp1-left-freqs (subvec x 1)
-                                         :sp1-right-freqs (subvec x 0 (- (count x) 1)))
-                             freq (:freq node)
-                             old-freqs (get-trie trie sub-x key [])
+                       (let [sub-x (case scenario
+                                         :sp1-left (subvec x 1)
+                                         :sp1-right (subvec x 0 (- (count x) 1)))
+                             old-freqs (get-trie trie sub-x [])
                              new-freqs (conj old-freqs freq)]
-                         (assoc-trie trie sub-x key new-freqs)))))
+                         (assoc-trie trie sub-x new-freqs)))))
         [sp1-left-freqs-trie, sp1-right-freqs-trie]
-        (map (fn [key]
-               (reduce (find-sp1 key)
+        (map (fn [scenario]
+               (reduce (find-sp1 scenario)
                        empty-trie
                        (seq-trie freq-trie)))
-             [:sp1-left-freqs, :sp1-right-freqs])
-        make-entropy-trie (fn [sp1-freqs-key sp1-entropy-key]
-                            (fn [trie [x node]]
-                              (if-let [sp1-freqs (sp1-freqs-key node)]
-                                (let [sp1-entropy (entropy sp1-freqs
-                                                           alphabet-size
-                                                           smooth-param)]
-                                  (assoc-trie trie x sp1-entropy-key sp1-entropy))
-                                trie)))
+             [:sp1-left, :sp1-right])
+        make-entropy-trie (fn [trie [x sp1-freqs]]
+                            (let [sp1-entropy (entropy sp1-freqs
+                                                       alphabet-size
+                                                       smooth-param)]
+                              (assoc-trie trie x sp1-entropy)))
         [sp1-left-entropy-trie, sp1-right-entropy-trie]
-        (map (fn [[sp1-freqs-key sp1-entropy-key sp1-freqs-trie]]
-               (reduce (make-entropy-trie sp1-freqs-key sp1-entropy-key)
+        (map (fn [sp1-freqs-trie]
+               (reduce make-entropy-trie
                        empty-trie
                        (seq-trie sp1-freqs-trie)))
-             [[:sp1-left-freqs :sp1-left-entropy sp1-left-freqs-trie]
-              [:sp1-right-freqs :sp1-right-entropy sp1-right-freqs-trie]])]
+             [sp1-left-freqs-trie, sp1-right-freqs-trie])]
     {:freq freq-trie
-     :sp1-left-freqs sp1-left-freqs-trie
      :sp1-left-entropy sp1-left-entropy-trie
-     :sp1-right-freqs sp1-right-freqs-trie
      :sp1-right-entropy sp1-right-entropy-trie}))
 
 
 ;; TAKING THE AVERAGES OF THE STATISTICS
 
 (defn averages-by-length
-  "Returns a vector whose i-th element is the average of the values bound
-  to 'key' on the i-th level of the supplied tries."
-  [tries key]
+  "Returns a vector whose i-th element is the average of the values
+  on the i-th level of the supplied tries."
+  [tries]
   (when (seq tries)
-    (let [values-here (keep #(get % key) tries)
+    (let [values-here (keep #(get % :val) tries)
           average-here (when (not (zero? (count values-here)))
                          (/ (reduce + values-here) (count values-here)))
           successors (mapcat (comp vals :succs) tries)]
-      (into [average-here] (averages-by-length successors key)))))
+      (into [average-here] (averages-by-length successors)))))
 
 (defn get-average-statistics
   "Given a trie with recorded frequencies and entropies, returns a map
   from the names of these properties to the vectors of their averages
   by length."
-  [trie]
-  (let [averages (map (fn [key] {key (averages-by-length [trie] key)})
-                      [:freq :left-entropy :right-entropy])]
-    (reduce merge averages)))
+  [tries]
+  (zipmap (keys tries) (map #(averages-by-length [%]) (vals tries))))
 
 
 ;; BREAKING UP THE LARGER CHUNKS
