@@ -5,9 +5,9 @@
                      [misc :only [flatten-leafs proper-subvecs]])))
 
 (defn discount-subsegs
-  "Takes the results of the previous Selection (nested vectors
-  describing the segmentation) and the original frequency trie
-  derived from the data. Returns the adjusted frequency trie,
-  with frequencies of proper subwords decreased."
+  "Takes the flattened result of the previous Selection (a sequence of
+  character vectors corresponding to the proposed segments) and the
+  original frequency trie derived from the data. Returns the adjusted
+  frequency trie, with frequencies of proper subwords decreased."
   [freq-trie segs]
-  (reduce disj-trie freq-trie (mapcat proper-subvecs (flatten-leafs segs))))
+  (reduce disj-trie freq-trie (mapcat proper-subvecs segs)))
