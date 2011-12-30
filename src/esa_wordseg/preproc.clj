@@ -2,7 +2,9 @@
   "The preprocessing part of the algorithm which takes care of chunking
   the input and calculating all of its relevant statistics."
   (:import (java.lang Character$UnicodeScript))
-  (:use (esa-wordseg trie [eval :only [gap-goodness]])))
+  (:use (esa-wordseg trie
+                     [eval :only [gap-goodness]]
+                     [misc :only [subvecs]])))
 
 
 ;;; PRELIMINARY CHUNKING OF INPUT
@@ -38,16 +40,6 @@
 
 
 ;;; CALCULATING THE STATISTICS OF THE INPUT
-
-(defn subvecs
-  "Returns all subvectors of vector x with 1 <= length <= limit."
-  [x limit]
-  (let [n (count x)]
-    (for [i (range n)
-          d (range 1 (+ 1 limit))
-          :let [j (+ i d)]
-          :when (<= j n)]
-      (subvec x i j))))
 
 (defn get-frequency-trie
   "Takes a sequence of character vectors xs and returns a trie which holds
